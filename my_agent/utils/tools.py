@@ -2,37 +2,17 @@ from langchain_core.tools import tool
 
 
 @tool
-def multiply(a: int, b: int) -> int:
-    """Multiply `a` and `b`.
-
+def scanEbay(query: str) -> str:
+    """Scan eBay for items matching the query.
+    
     Args:
-        a: First int
-        b: Second int
+        query: The search query.
     """
-    return a * b
+    # Implement eBay scanning logic here
+    return f"Scanned eBay for '{query}'"
+    
 
-
-@tool
-def add(a: int, b: int) -> int:
-    """Adds `a` and `b`.
-
-    Args:
-        a: First int
-        b: Second int
-    """
-    return a + b
-
-
-@tool
-def divide(a: int, b: int) -> float:
-    """Divide `a` and `b`.
-
-    Args:
-        a: First int
-        b: Second int
-    """
-    return a / b
 
 
 # Export tools list
-tools = [add, multiply, divide]
+tools = [scanEbay]
