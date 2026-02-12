@@ -4,3 +4,4 @@ langchain-core
 langchain-anthropic
 python-dotenv
 defusedxml
+typing_extensions

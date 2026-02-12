@@ -1,9 +1,11 @@
-from langchain.messages import AnyMessage
-from typing_extensions import TypedDict, Annotated
 import operator
+
+from langchain.messages import AnyMessage
+from typing_extensions import Annotated, TypedDict
 
 
 class MainState(TypedDict):
-    searchquery: str
-    items: Annotated[list[AnyMessage], operator.attrgetter('content')]
-    
+    messages: Annotated[list[AnyMessage], operator.add]
+    filtered_queries: list[str]
+    items: Annotated[list[AnyMessage], operator.add]
+    llm_calls: int

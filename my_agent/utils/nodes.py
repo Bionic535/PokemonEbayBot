@@ -1,40 +1,18 @@
-import os
 from typing import Literal
 
-from dotenv import load_dotenv
-from langchain.chat_models import init_chat_model
 from langchain_core.messages import SystemMessage, ToolMessage
-from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langgraph.graph import END
 
-from my_agent.utils.state import MessagesState
-from my_agent.utils.tools import tools
+from my_agent.utils.state import MainState
+from my_agent.utils.tools import scanEbay, tools
 
-load_dotenv()
-
-api_key = os.getenv("NVIDIA_API_KEY")
-if not api_key:
-    print("\nCRITICAL ERROR: NVIDIA_API_KEY not found in environment variables!")
-else:
-    print(f"\nDEBUG: NVIDIA_API_KEY loaded. Starts with: {api_key[:4]}...")
-
-# Initialize model explicitly using NVIDIA
-model = ChatNVIDIA(
-    model="nvidia/nemotron-3-nano-30b-a3b",
-    api_key=api_key,
-    temperature=1,
-    top_p=1,
-    max_tokens=16384,
-    reasoning_budget=16384,
-    chat_template_kwargs={"enable_thinking": True},
-)
-
+from .model import model
 
 tools_by_name = {tool.name: tool for tool in tools}
 model_with_tools = model.bind_tools(tools)
 
 
-def llm_call(state: MessagesState):
+def llm_call(state: MainState):
     """LLM decides whether to call a tool or not"""
 
     return {
@@ -42,7 +20,16 @@ def llm_call(state: MessagesState):
             model_with_tools.invoke(
                 [
                     SystemMessage(
-                        content="You are a helpful assistant tasked with performing arithmetic on a set of inputs."
+                        content=(
+                            "You are an expert Pokemon card finder for eBay.\n"
+                            "Your goal is to help users find specific Pokemon cards.\n"
+                            "Your current task is to narrow down the users search query to something that is specific."
+                            "if their query is in the format Card quality (NM, LP, HP, ETC) or Grading Company Abbreviation(PSA, CGC, BGS, ETC)+Number Grade Set Name Card Name Card Number Release Year, ask for the min or max price if not provided then call refineQuery.\n"
+                            "The details required for a specific query is the pokemon name, if they are looking for a raw or graded card, if it is graded what grading company they are looking for and a specific or minimum grade, and a minimum or maximum price."
+                            "If a user query doesn't provide all of the required details, ask clarifying questions to narrow down the specific card. \n"
+                            "When you have collected all the specific details (Pokemon name, Grade/Condition, Set, Price), "
+                            "call the 'refineQuery' tool to optimize the search terms."
+                        )
                     )
                 ]
                 + state["messages"]
@@ -52,7 +39,24 @@ def llm_call(state: MessagesState):
     }
 
 
-def tool_node(state: MessagesState):
+def search_ebay_node(state: MainState):
+    """Searches eBay using the filtered queries."""
+    queries = state.get("filtered_queries", [])
+
+    # Call scanEbay directly as a tool
+    # The tool returns a string, so we wrap it in a ToolMessage (or HumanMessage since it's an internal node acting as a tool)
+    results = scanEbay.invoke({"queries": queries})
+
+    return {
+        "messages": [
+            ToolMessage(content=str(results), tool_call_id="search_ebay_node")
+        ],
+        # Clear the queue so we don't re-search automatically next time
+        "filtered_queries": [],
+    }
+
+
+def tool_node(state: MainState):
     """Performs the tool call"""
 
     result = []
@@ -70,7 +74,7 @@ def tool_node(state: MessagesState):
     return {"messages": result}
 
 
-def should_continue(state: MessagesState) -> Literal["tool_node", END]:
+def should_continue(state: MainState) -> Literal["tool_node", END]:
     """Decide if we should continue the loop or stop based upon whether the LLM made a tool call"""
 
     messages = state["messages"]
