@@ -6,6 +6,7 @@ from typing_extensions import Annotated, TypedDict
 
 class MainState(TypedDict):
     messages: Annotated[list[AnyMessage], operator.add]
+    query: str
     filtered_queries: list[str]
     items: Annotated[list[AnyMessage], operator.add]
     llm_calls: int

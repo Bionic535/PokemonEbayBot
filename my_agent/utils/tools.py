@@ -1,8 +1,12 @@
+import logging
+
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
 
 from .model import model
 from .state import MainState
+
+logger = logging.getLogger(__name__)
 
 
 @tool
@@ -29,9 +33,13 @@ REFINE_PROMPT = (
 
 
 @tool
-def refineQuery(state: MainState):
-    """Refine a search query to be more effective for eBay searching."""
-    query = state["messages"][-1].content
+def refineQuery(query: str):
+    """Refine a search query to be more effective for eBay searching.
+
+    Args:
+        query: The current search query or requirements to refine.
+    """
+    # Use the provided query argument instead of reading state["messages"]
     prompt = REFINE_PROMPT.format(query=query)
     response = model.invoke([{"role": "user", "content": prompt}])
 

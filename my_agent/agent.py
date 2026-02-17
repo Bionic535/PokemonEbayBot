@@ -29,38 +29,66 @@ agent_builder.add_conditional_edges(
     {"search_ebay_node": "search_ebay_node", "llm_call": "llm_call"},
 )
 
-agent_builder.add_edge("search_ebay_node", "llm_call")
 
 # Compile the agent
 graph = agent_builder.compile()
 
 if __name__ == "__main__":
+    import logging
+
     from langchain_core.messages import HumanMessage
+    from langgraph.checkpoint.memory import MemorySaver
+
+    logging.basicConfig(level=logging.INFO)
+
+    # Set up persistence for the CLI session
+
+    memory = MemorySaver()
+
+    # Compile a new graph instance with the checkpointer
+
+    # We use the existing agent_builder defined in this file
+
+    cli_graph = agent_builder.compile(checkpointer=memory)
+
+    # Config with a static thread_id for this session
+
+    config = {"configurable": {"thread_id": "1"}}
 
     print("--- Pokemon eBay Agent ---")
+
     print("Type 'q', 'quit', or 'exit' to end the session.")
 
     while True:
         user_input = input("\nUser: ")
+
         if user_input.lower() in ["q", "quit", "exit"]:
             print("Goodbye!")
+
             break
+
+        # Only pass the new message. 'query' will be retrieved from the persisted state.
 
         inputs = {"messages": [HumanMessage(content=user_input)]}
 
         try:
-            # Invoke the graph
-            # check pointer=True allows usage of threads if configured, but simple invoke is fine here.
-            result = graph.invoke(inputs)
+            # Invoke the graph using the CLI-specific graph and config
+
+            result = cli_graph.invoke(inputs, config=config)
 
             print("Agent:", end=" ")
+
             # Attempt to print the last message content
+
             if "messages" in result and result["messages"]:
                 print(result["messages"][-1].content)
+
             else:
                 print(result)
+
         except Exception as e:
             print(f"Error: {e}")
+
             print(
                 "Tip: Check if 'MainState' in 'utils/state.py' includes a 'messages' key."
             )
