@@ -1,0 +1,35 @@
+- name: graded_charizard_complete
+  input:
+    messages:
+      - role: human
+        content: "I'm looking for a graded PSA 9 Base Set Charizard #4 from 1999. Max price $500."
+    query: ""
+    llm_calls: 0
+  expected:
+    must_reach: search_ebay_node
+    output_contains: "Scanned eBay"
+    filtered_queries: []
+    min_llm_calls: 1
+
+- name: raw_pikachu_complete
+  input:
+    messages:
+      - role: human
+        content: "I want a raw Near Mint Pikachu from Base Set, min price $50 and max price $200."
+    query: ""
+    llm_calls: 0
+  expected:
+    must_reach: search_ebay_node
+    output_contains: "Scanned eBay"
+    filtered_queries: []
+    min_llm_calls: 1
+
+- name: incomplete_query_no_search
+  input:
+    messages:
+      - role: human
+        content: "I want a Charizard."
+    query: ""
+    llm_calls: 0
+  expected:
+    must_not_reach: search_ebay_node
