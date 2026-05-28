@@ -2,7 +2,7 @@ langgraph
 langchain
 langchain-core
 langchain-anthropic
-langchain-nvidia-ai-endpoints
+langchain-openai
 python-dotenv
 defusedxml
 typing_extensions

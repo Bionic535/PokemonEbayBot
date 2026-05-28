@@ -42,14 +42,14 @@ def build_inputs(case_input: dict) -> dict:
 
 
 @pytest.fixture(scope="session")
-def nvidia_api_key():
+def openai_api_key():
     load_dotenv()
-    api_key = os.getenv("NVIDIA_API_KEY")
+    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        pytest.skip("NVIDIA_API_KEY not set; skipping live LLM integration tests")
+        pytest.skip("OPENAI_API_KEY not set; skipping live LLM integration tests")
     return api_key
 
 
 @pytest.fixture
-def compiled_graph(nvidia_api_key):
+def compiled_graph(openai_api_key):
     return create_agent_builder().compile()
