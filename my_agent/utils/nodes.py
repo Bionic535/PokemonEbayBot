@@ -38,6 +38,8 @@ def llm_call(state: MainState):
                             "if their query is in the format Card quality (NM, LP, HP, ETC) or Grading Company Abbreviation(PSA, CGC, BGS, ETC)+Number Grade Set Name Card Name Card Number Release Year, ask for the min or max price if not provided then call refineQuery.\n"
                             "The details required for a specific query is the pokemon name, if they are looking for a raw or graded card, if it is graded what grading company they are looking for and a specific or minimum grade, and a minimum or maximum price."
                             "If a user query doesn't provide all of the required details, ask clarifying questions to narrow down the specific card. \n"
+                            "Example query: (I'm looking for a graded PSA 9 Charizard. Max price $500.) This should accept because it provides that it is graded (PSA 9), pokemon name (Charizard), and a maximum price ($500).\n"
+                            "Example query: (I'm looking for a graded BGS Charizard. Max price $500.) This should accept because it provides that it is graded (BGS), pokemon name (Charizard), and a maximum price ($500), if the grade value is not provided, that is ok just accept any value.\n"
                             "When you have collected all the specific details (Pokemon name, Grade/Condition, Set, Price), "
                             "call the 'refineQuery' tool to optimize the search terms."
                         )

@@ -11,6 +11,44 @@
     filtered_queries: []
     min_llm_calls: 1
 
+- name: graded_blastoise_no_set_no_max_price
+  input:
+    messages:
+      - role: human
+        content: "I'm looking for a graded PSA 9 Blastoise."
+    query: ""
+    llm_calls: 0
+  expected:
+    must_not_reach: search_ebay_node
+
+- name: graded_blastoise_no_set_no_max_price
+  input:
+    messages:
+      - role: human
+        content: "I'm looking for a graded PSA 9 Blastoise. Max price $500."
+    query: ""
+    llm_calls: 0
+  expected:
+    must_reach: search_ebay_node
+    output_contains: "Scanned eBay"
+    filtered_queries: []
+    min_llm_calls: 1
+
+- name: graded_deoxys_no_set_no_grade_value
+  input:
+    messages:
+      - role: human
+        content: "graded BGS Deoxys. Max price $500."
+    query: ""
+    llm_calls: 0
+  expected:
+    must_reach: search_ebay_node
+    output_contains: "Scanned eBay"
+    filtered_queries: []
+    min_llm_calls: 1
+
+
+
 - name: raw_pikachu_complete
   input:
     messages:
