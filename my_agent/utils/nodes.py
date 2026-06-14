@@ -6,7 +6,8 @@ from langgraph.graph import END
 
 from my_agent.utils.state import MainState
 from my_agent.utils.tools import scanEbay, tools
-
+import base64
+import os
 from .model import model
 
 logger = logging.getLogger(__name__)
@@ -14,7 +15,36 @@ logger = logging.getLogger(__name__)
 tools_by_name = {tool.name: tool for tool in tools}
 model_with_tools = model.bind_tools(tools)
 
+def get_ebay_token():
+    client_id = os.getenv("EBAY_CLIENT_ID")
+    client_secret = os.getenv("EBAY_CLIENT_SECRET")
+    environment = os.getenv("EBAY_ENVIRONMENT")
+    if not client_id or not client_secret or not environment:
+        raise ValueError("EBAY_CLIENT_ID and EBAY_CLIENT_SECRET must be set")
 
+    basic_auth = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+    r = requests.post(
+        f"https://api.{environment}.ebay.com/identity/v1/oauth2/token",
+        headers={
+            "Authorization": f"Basic {basic_auth}",
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        data={
+            "grant_type": "client_credentials",
+            "scope": "https://api.ebay.com/oauth/api_scope",
+        },
+        timeout=30,
+    )
+    if r.status_code != 200:
+        raise ValueError(f"Failed to get eBay token: {r.json()}")
+    return r.json()["access_token"]
+    
+    
+    
+
+def search(query: list[str]):
+    return 0; #TODO: Implement eBay search logic
+    
 def llm_call(state: MainState):
     """LLM decides whether to call a tool or not"""
     query = state.get("query", "")
@@ -32,16 +62,20 @@ def llm_call(state: MainState):
                 [
                     SystemMessage(
                         content=(
+                            #Intro
                             "You are an expert Pokemon card finder for eBay.\n"
                             "Your goal is to help users find specific Pokemon cards.\n"
+                            #Task
                             f"Your current task is to narrow down the users search query to something that is specific. Please look at the user message and also {query}.\n"
+                            #Format
                             "if their query is in the format Card quality (NM, LP, HP, ETC) or Grading Company Abbreviation(PSA, CGC, BGS, ETC)+Number Grade Set Name Card Name Card Number Release Year, ask for the min or max price if not provided then call refineQuery.\n"
+                            #Details
                             "The details required for a specific query is the pokemon name, if they are looking for a raw or graded card, if it is graded what grading company they are looking for and a specific or minimum grade, and a minimum or maximum price."
                             "If a user query doesn't provide all of the required details, ask clarifying questions to narrow down the specific card. \n"
                             "Example query: (I'm looking for a graded PSA 9 Charizard. Max price $500.) This should accept because it provides that it is graded (PSA 9), pokemon name (Charizard), and a maximum price ($500).\n"
+                            "Example query: (Charizard PSA 10 under $500, this should accept because it provides that it is graded (PSA 10), pokemon name (Charizard), and a maximum price ($500).\n"
                             "Example query: (I'm looking for a graded BGS Charizard. Max price $500.) This should accept because it provides that it is graded (BGS), pokemon name (Charizard), and a maximum price ($500), if the grade value is not provided, that is ok just accept any value.\n"
-                            "When you have collected all the specific details (Pokemon name, Grade/Condition, Set, Price), "
-                            "call the 'refineQuery' tool to optimize the search terms."
+                            
                         )
                     )
                 ]
@@ -56,7 +90,8 @@ def llm_call(state: MainState):
 def search_ebay_node(state: MainState):
     """Searches eBay using the filtered queries."""
     queries = state.get("filtered_queries", [])
-
+    print(f"Searching eBay with queries: {queries}")
+    token = get_ebay_token()
     # Call scanEbay directly as a tool
     # The tool returns a string, so we wrap it in a ToolMessage (or HumanMessage since it's an internal node acting as a tool)
     results = scanEbay.invoke({"queries": queries})

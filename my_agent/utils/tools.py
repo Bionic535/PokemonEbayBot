@@ -22,7 +22,7 @@ def scanEbay(queries: list[str]) -> str:
 
 REFINE_PROMPT = (
     "You are responsible an agent responsible for fetching ebay listings for pokemon cards. Please change the query to more accurately follow the format:"
-    "Card quality (NM, LP, HP, ETC) or Grading Company Abbreviation(PSA, CGC, BGS, ETC)+Number Grade Set Name Card Name Card Number Release Year"
+    "Card quality (NM, LP, HP, ETC) or Grading Company Abbreviation(PSA, CGC, BGS, ETC)+Number Grade + Set Name + Card Name + Card Number + Release Year"
     "if there is any absent information, don't include it"
     "Here is the initial query:"
     "\n ------- \n"
@@ -52,5 +52,10 @@ def refineQuery(query: str):
     }
 
 
+@tool
+def updateQuery(Pkmn_Name: str, Type: str, Grade Company: str, Grade: int, Min Price: int, Max Price: int, Set: str):
+    """Updates the search query"""
+    updatess = {k: v for k, v in locals().items() if v is not None}
+    return {"query": updates}
 # Export tools list
 tools = [scanEbay, refineQuery]
