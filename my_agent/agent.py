@@ -8,30 +8,9 @@ from my_agent.utils.nodes import llm_call, search_ebay_node, should_continue, to
 from my_agent.utils.state import MainState
 
 
-def get_ebay_token():
-    client_id = os.getenv("EBAY_CLIENT_ID")
-    client_secret = os.getenv("EBAY_CLIENT_SECRET")
-    environment = os.getenv("EBAY_ENVIRONMENT")
-    if not client_id or not client_secret or not environment:
-        raise ValueError("EBAY_CLIENT_ID and EBAY_CLIENT_SECRET must be set")
 
-    basic_auth = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
 
-    r = requests.post(
-        f"https://api.{environment}.ebay.com/identity/v1/oauth2/token",
-        headers={
-            "Authorization": f"Basic {basic_auth}",
-            "Content-Type": "application/x-www-form-urlencoded",
-        },
-        data={
-            "grant_type": "client_credentials",
-            "scope": "https://api.ebay.com/oauth/api_scope",
-        },
-        timeout=30,
-    )
-    if r.status_code != 200:
-        raise ValueError(f"Failed to get eBay token: {r.json()}")
-    return r.json()["access_token"]
+    
 
 
 def route_after_tool(state: MainState):
@@ -84,7 +63,6 @@ if __name__ == "__main__":
 
     config = {"configurable": {"thread_id": "1"}}
 
-    print(get_ebay_token())
     print("--- Pokemon eBay Agent ---")
 
     print("Type 'q', 'quit', or 'exit' to end the session.")
