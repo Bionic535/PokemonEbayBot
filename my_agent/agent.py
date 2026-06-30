@@ -10,30 +10,26 @@ from my_agent.utils.state import MainState
 
 
 
-    
-
-
 def route_after_tool(state: MainState):
-    if state.get("filtered_queries"):
+    if state.get("can_search", False) and state.get("queries"):
         return "search_ebay_node"
-    return "llm_call"
+    else:
+        return "llm_call"
 
 
 def create_agent_builder() -> StateGraph:
     """Build the agent graph. Compile a fresh instance for each test run."""
-    agent_builder = StateGraph(MainState)
 
+    agent_builder = StateGraph(MainState)
     agent_builder.add_node("llm_call", llm_call)
     agent_builder.add_node("tool_node", tool_node)
     agent_builder.add_node("search_ebay_node", search_ebay_node)
 
     agent_builder.add_edge(START, "llm_call")
+    agent_builder.add_conditional_edges("tool_node", route_after_tool, ["search_ebay_node", "llm_call"])
+    agent_builder.add_edge("llm_call", END)
     agent_builder.add_conditional_edges("llm_call", should_continue, ["tool_node", END])
-    agent_builder.add_conditional_edges(
-        "tool_node",
-        route_after_tool,
-        {"search_ebay_node": "search_ebay_node", "llm_call": "llm_call"},
-    )
+
 
     return agent_builder
 
@@ -43,11 +39,17 @@ graph = agent_builder.compile()
 
 if __name__ == "__main__":
     import logging
+    import os
 
-    from langchain_core.messages import HumanMessage
+    from langchain_core.messages import AIMessage, HumanMessage
     from langgraph.checkpoint.memory import MemorySaver
 
-    logging.basicConfig(level=logging.INFO)
+    log_level = (
+        logging.DEBUG if os.getenv("AGENT_VERBOSE") else logging.WARNING
+    )
+    logging.basicConfig(level=log_level)
+    for noisy_logger in ("httpx", "httpcore", "openai"):
+        logging.getLogger(noisy_logger).setLevel(logging.WARNING)
 
     # Set up persistence for the CLI session
 
@@ -94,10 +96,20 @@ if __name__ == "__main__":
             # Attempt to print the last message content
 
             if "messages" in result and result["messages"]:
-                print(result["messages"][-1].content)
-
+                reply = next(
+                    (
+                        m.content
+                        for m in reversed(result["messages"])
+                        if isinstance(m, AIMessage) and m.content
+                    ),
+                    None,
+                )
+                print(reply or result["messages"][-1].content)
+            
+                print("queries: ", result["queries"])
+                print("query: ", result["query"])
             else:
-                print(result)
+                print("Error: ", result)
 
         except Exception as e:
             print(f"Error: {e}")

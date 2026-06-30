@@ -1,14 +1,16 @@
+import base64
 import logging
+import os
 from typing import Literal
 
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+import requests
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage, AIMessage
 from langgraph.graph import END
 
 from my_agent.utils.state import MainState
 from my_agent.utils.tools import scanEbay, tools
-import base64
-import os
 from .model import model
+from my_agent.utils.prompts import build_system_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -47,67 +49,44 @@ def search(query: list[str]):
     
 def llm_call(state: MainState):
     """LLM decides whether to call a tool or not"""
-    query = state.get("query", "")
+    current_query = state.get("query", {})
     messages = state.get("messages", [])
 
-    logger.info(f"Current query: {query}")
-    logger.info(f"Current messages: {messages}")
-
-    if messages and isinstance(messages[-1], HumanMessage):
-        query += " " + str(messages[-1].content)
+    logger.debug("Current query: %s", current_query)
+    logger.debug("Current messages: %s", messages)
 
     return {
         "messages": [
             model_with_tools.invoke(
                 [
                     SystemMessage(
-                        content=(
-                            #Intro
-                            "You are an expert Pokemon card finder for eBay.\n"
-                            "Your goal is to help users find specific Pokemon cards.\n"
-                            #Task
-                            f"Your current task is to narrow down the users search query to something that is specific. Please look at the user message and also {query}.\n"
-                            #Format
-                            "if their query is in the format Card quality (NM, LP, HP, ETC) or Grading Company Abbreviation(PSA, CGC, BGS, ETC)+Number Grade Set Name Card Name Card Number Release Year, ask for the min or max price if not provided then call refineQuery.\n"
-                            #Details
-                            "The details required for a specific query is the pokemon name, if they are looking for a raw or graded card, if it is graded what grading company they are looking for and a specific or minimum grade, and a minimum or maximum price."
-                            "If a user query doesn't provide all of the required details, ask clarifying questions to narrow down the specific card. \n"
-                            "Example query: (I'm looking for a graded PSA 9 Charizard. Max price $500.) This should accept because it provides that it is graded (PSA 9), pokemon name (Charizard), and a maximum price ($500).\n"
-                            "Example query: (Charizard PSA 10 under $500, this should accept because it provides that it is graded (PSA 10), pokemon name (Charizard), and a maximum price ($500).\n"
-                            "Example query: (I'm looking for a graded BGS Charizard. Max price $500.) This should accept because it provides that it is graded (BGS), pokemon name (Charizard), and a maximum price ($500), if the grade value is not provided, that is ok just accept any value.\n"
-                            
-                        )
+                        content=build_system_prompt(state)
                     )
                 ]
-                + state["messages"]
+                + messages
             )
         ],
         "llm_calls": state.get("llm_calls", 0) + 1,
-        "query": query,
     }
 
 
 def search_ebay_node(state: MainState):
-    """Searches eBay using the filtered queries."""
-    queries = state.get("filtered_queries", [])
-    print(f"Searching eBay with queries: {queries}")
-    token = get_ebay_token()
-    # Call scanEbay directly as a tool
-    # The tool returns a string, so we wrap it in a ToolMessage (or HumanMessage since it's an internal node acting as a tool)
+    """Searches eBay using completed query specs."""
+    queries = state.get("queries", [])
+    logger.info("Searching eBay with queries: %s", queries)
     results = scanEbay.invoke({"queries": queries})
 
     return {
         "messages": [
-            ToolMessage(content=str(results), tool_call_id="search_ebay_node")
+            AIMessage(content=f"I found the following items on eBay: {results}")
         ],
-        # Clear the queue so we don't re-search automatically next time
-        "filtered_queries": [],
+        "queries": [],
+        "can_search": False,
     }
 
 
 def tool_node(state: MainState):
     """Performs the tool call"""
-
     result = []
     state_updates = {}
     # We look at the last message to find tool calls
@@ -118,16 +97,11 @@ def tool_node(state: MainState):
             tool = tools_by_name[tool_call["name"]]
             observation = tool.invoke(tool_call["args"])
 
-            # Check if observation is a dict (implies state update)
             if isinstance(observation, dict):
-                # Update our state updates with any keys that aren't 'messages'
-                # We handle 'messages' separately or let them merge if intended,
-                # but typically ToolMessage is the main message artifact.
-                # However, refineQuery returns 'messages' as HumanMessage list?
-                # That might break the ToolMessage pattern if not careful.
-                # For now, let's just merge the whole dict into state_updates
-                state_updates.update(observation)
-                # We still need a string for the ToolMessage content
+                # Never merge tool-returned messages; every tool_call needs a ToolMessage.
+                state_updates.update(
+                    {k: v for k, v in observation.items() if k != "messages"}
+                )
                 content_str = str(observation)
             else:
                 content_str = str(observation)
