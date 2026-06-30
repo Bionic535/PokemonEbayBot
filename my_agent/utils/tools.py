@@ -1,16 +1,46 @@
 import logging
 
-from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
+from my_agent.utils.state import QuerySpec
 
-from .model import model
 from .state import MainState
 
 logger = logging.getLogger(__name__)
+REQUIRED = ["Pokemon_Name", "Type"]
 
+def is_query_complete(q: QuerySpec) -> bool:
+    if not all(q.get(k) for k in REQUIRED):
+        return False
+    if q.get("Type") == "graded" and not q.get("Grade_Company") and not q.get("Grade"):
+        return False
+    if not q.get("Min_Price") and not q.get("Max_Price"):
+        return False
+    return True
 
 @tool
-def scanEbay(queries: list[str]) -> str:
+def canSearch():
+    """Check if the current query is complete enough to search for."""
+    return {"can_search": True}
+
+@tool
+def finalizeQuery(query: QuerySpec):
+    """Mark the current query as complete and queue it for search."""
+    if not is_query_complete(query):
+        missing = [k for k in REQUIRED if not query.get(k)]
+        if query.get("Type") == "graded" and not query.get("Grade_Company") and not query.get("Grade"):
+            missing.append("Grade_Company")
+            missing.append("Grade")
+        if not query.get("Min_Price") and not query.get("Max_Price"):
+            missing.append("Min_Price or Max_Price")
+        return {
+            "query": query,
+            "complete": False,
+            "missing_fields": missing,
+        }
+    return {"queries": [query], "query": {}, "complete": True}
+
+@tool
+def scanEbay(queries: list[QuerySpec]) -> str:
     """Scan eBay for items matching the query.
 
     Args:
@@ -20,42 +50,31 @@ def scanEbay(queries: list[str]) -> str:
     return f"Scanned eBay for '{queries}'"
 
 
-REFINE_PROMPT = (
-    "You are responsible an agent responsible for fetching ebay listings for pokemon cards. Please change the query to more accurately follow the format:"
-    "Card quality (NM, LP, HP, ETC) or Grading Company Abbreviation(PSA, CGC, BGS, ETC)+Number Grade + Set Name + Card Name + Card Number + Release Year"
-    "if there is any absent information, don't include it"
-    "Here is the initial query:"
-    "\n ------- \n"
-    "{query}"
-    "\n ------- \n"
-    "please return a series of optimised query or queries, if you are returning multiple queries please separate them with a single comma, and if information about price requirements is given please put them at the front of the query with (min_price:PRICE, max_price:PRICE), if only 1 is given only put the price given"
-)
-
-
 @tool
-def refineQuery(query: str):
-    """Refine a search query to be more effective for eBay searching.
-
-    Args:
-        query: The current search query or requirements to refine.
-    """
-    # Use the provided query argument instead of reading state["messages"]
-    prompt = REFINE_PROMPT.format(query=query)
-    response = model.invoke([{"role": "user", "content": prompt}])
-
-    # Parse the response into a list of queries
-    refined_queries = [q.strip() for q in response.content.split(",")]
-
-    return {
-        "filtered_queries": refined_queries,
-        "messages": [HumanMessage(content=f"Refined queries: {refined_queries}")],
+def updateQuery(
+    Pokemon_Name: str | None = None,
+    Type: str | None = None,
+    Grade_Company: str | None = None,
+    Grade: int | None = None,
+    Min_Price: int | None = None,
+    Max_Price: int | None = None,
+    Set_Name: str | None = None,
+):
+    """Update the in-progress search query with any newly known fields."""
+    updates = {
+        k: v
+        for k, v in {
+            "Pokemon_Name": Pokemon_Name,
+            "Type": Type,
+            "Grade_Company": Grade_Company,
+            "Grade": Grade,
+            "Min_Price": Min_Price,
+            "Max_Price": Max_Price,
+            "Set_Name": Set_Name,
+        }.items()
+        if v is not None
     }
-
-
-@tool
-def updateQuery(Pkmn_Name: str, Type: str, Grade Company: str, Grade: int, Min Price: int, Max Price: int, Set: str):
-    """Updates the search query"""
-    updatess = {k: v for k, v in locals().items() if v is not None}
     return {"query": updates}
-# Export tools list
-tools = [scanEbay, refineQuery]
+
+
+tools = [updateQuery, finalizeQuery, canSearch]

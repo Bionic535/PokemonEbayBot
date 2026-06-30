@@ -3,26 +3,34 @@ import os
 import pytest
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
-
 from my_agent.agent import create_agent_builder
-
+from langgraph.checkpoint.memory import MemorySaver
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "integration: live LLM integration tests")
 
 
 def collect_visited_nodes(compiled_graph, inputs):
-    """Stream the graph and return node names plus the final accumulated state."""
     visited = []
     final_state = None
-    for mode, chunk in compiled_graph.stream(
-        inputs, stream_mode=["updates", "values"]
-    ):
-        if mode == "updates":
-            visited.extend(chunk.keys())
-        elif mode == "values":
-            final_state = chunk
-    return visited, final_state
+    queries_at_search = None
+    messages = inputs.get("messages", [])
+    config = {"configurable": {"thread_id": "1"}}
+    for i in messages:
+        inputs["messages"] = [i]
+        for mode, chunk in compiled_graph.stream(
+            inputs, stream_mode=["updates", "values"], config=config
+        ):
+            if mode == "updates":
+                visited.extend(chunk.keys())
+                if "search_ebay_node" in chunk and final_state is not None:
+                    # values mode hasn't run yet for this step;
+                    # queries are still in state before the node clears them
+                    queries_at_search = final_state.get("queries", [])
+            elif mode == "values":
+                final_state = chunk
+
+    return visited, final_state, queries_at_search
 
 
 def build_inputs(case_input: dict) -> dict:
@@ -36,8 +44,10 @@ def build_inputs(case_input: dict) -> dict:
         ]
     if "query" in case_input:
         inputs["query"] = case_input["query"]
-    if "llm_calls" in case_input:
-        inputs["llm_calls"] = case_input["llm_calls"]
+    if "queries" in case_input:
+        inputs["queries"] = case_input["queries"]
+    if "can_search" in case_input:
+        inputs["can_search"] = case_input["can_search"]
     return inputs
 
 
@@ -52,4 +62,5 @@ def openai_api_key():
 
 @pytest.fixture
 def compiled_graph(openai_api_key):
-    return create_agent_builder().compile()
+    checkpointer = MemorySaver()
+    return create_agent_builder().compile(checkpointer=checkpointer)
