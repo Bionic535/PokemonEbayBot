@@ -40,13 +40,32 @@ def finalizeQuery(query: QuerySpec):
     return {"queries": [query], "query": {}, "complete": True}
 
 @tool
-def scanEbay(queries: list[QuerySpec]) -> str:
+def scanEbay(queries: list[QuerySpec], token: str) -> str:
     """Scan eBay for items matching the query.
 
     Args:
         queries: The search queries.
     """
     # Implement eBay scanning logic here
+    base_url = "https://api.ebay.com/buy/browse/v1/item_summary/search"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-EBAY-C-MARKETPLACE-ID": "EBAY_AU",
+        "Content-Type": "application/json",
+    }
+    
+    for query in queries:
+        min_price = query.get("Min_Price") or 0
+        max_price = query.get("Max_Price") or 999999
+        query_string = " ".join(filter(None, [query.get("Pokemon_Name"), query.get("Set_Name")]))
+        if query.get("Type") == "graded":
+            query_string += f" {query.get('Grade_Company')} {query.get('Grade')}"
+        params = {
+            "q": query_string,
+            "filter": f"price:[{min_price}..{max_price}]",
+            
+        }
+        print(params)
     return f"Scanned eBay for '{queries}'"
 
 

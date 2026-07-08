@@ -72,9 +72,11 @@ def llm_call(state: MainState):
 
 def search_ebay_node(state: MainState):
     """Searches eBay using completed query specs."""
+    token = get_ebay_token()
+    print("Token: ", token)
     queries = state.get("queries", [])
     logger.info("Searching eBay with queries: %s", queries)
-    results = scanEbay.invoke({"queries": queries})
+    results = scanEbay.invoke({"queries": queries, "token": token})
 
     return {
         "messages": [
