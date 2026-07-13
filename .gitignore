@@ -22,3 +22,4 @@ Thumbs.db
 plan.md
 
 .pytest_cache/
+.cursorignore

@@ -4,6 +4,8 @@ from langchain_core.tools import tool
 from my_agent.utils.state import QuerySpec
 
 from .state import MainState
+import requests
+import os
 
 logger = logging.getLogger(__name__)
 REQUIRED = ["Pokemon_Name", "Type"]
@@ -46,8 +48,9 @@ def scanEbay(queries: list[QuerySpec], token: str) -> str:
     Args:
         queries: The search queries.
     """
+    environment = os.getenv("EBAY_ENVIRONMENT")
     # Implement eBay scanning logic here
-    base_url = "https://api.ebay.com/buy/browse/v1/item_summary/search"
+    base_url = f"https://api.ebay.com/buy/browse/v1/item_summary/search"
     headers = {
         "Authorization": f"Bearer {token}",
         "X-EBAY-C-MARKETPLACE-ID": "EBAY_AU",
@@ -62,10 +65,13 @@ def scanEbay(queries: list[QuerySpec], token: str) -> str:
             query_string += f" {query.get('Grade_Company')} {query.get('Grade')}"
         params = {
             "q": query_string,
-            "filter": f"price:[{min_price}..{max_price}]",
+            "limit": 1,
+            "filter": f"price:[{min_price}..{max_price}],priceCurrency:AUD"
             
         }
         print(params)
+        result = requests.get(base_url, headers=headers, params=params)
+        print(result.json())
     return f"Scanned eBay for '{queries}'"
 
 

@@ -26,7 +26,7 @@ def get_ebay_token():
 
     basic_auth = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
     r = requests.post(
-        f"https://api.{environment}.ebay.com/identity/v1/oauth2/token",
+        f"https://api.ebay.com/identity/v1/oauth2/token",
         headers={
             "Authorization": f"Basic {basic_auth}",
             "Content-Type": "application/x-www-form-urlencoded",
@@ -73,7 +73,6 @@ def llm_call(state: MainState):
 def search_ebay_node(state: MainState):
     """Searches eBay using completed query specs."""
     token = get_ebay_token()
-    print("Token: ", token)
     queries = state.get("queries", [])
     logger.info("Searching eBay with queries: %s", queries)
     results = scanEbay.invoke({"queries": queries, "token": token})
