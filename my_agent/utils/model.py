@@ -10,8 +10,9 @@ if not api_key:
     print("\nCRITICAL ERROR: OPENAI_API_KEY not found in environment variables!")
 
 model = ChatOpenAI(
-    model="gpt-4.1-nano",
+    model="gpt-6-luna",
     api_key=api_key,
     temperature=0,
     max_tokens=4096,
+    reasoning_effort="none"
 )
