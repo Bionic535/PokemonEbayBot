@@ -1,0 +1,43 @@
+[project]
+name = "pokemonebaybot"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "langgraph",
+  "langchain",
+  "langchain-core",
+  "langchain-anthropic",
+  "langchain-openai",
+  "python-dotenv",
+  "defusedxml",
+  "typing_extensions",
+  "pyyaml",
+  "langgraph-api>=0.11.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["my_agent*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+markers = [
+  "integration: live LLM integration tests",
+]
+
+[dependency-groups]
+dev = [
+    "langgraph-cli[inmem]>=0.4.43",
+]

@@ -71,8 +71,7 @@ def scanEbay(queries: list[QuerySpec], token: str) -> str:
         }
         print(params)
         result = requests.get(base_url, headers=headers, params=params)
-        print(result.json())
-    return f"Scanned eBay for '{queries}'"
+    return f"Scanned eBay for '{queries}' Found {result.json()}"
 
 
 @tool

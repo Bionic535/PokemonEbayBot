@@ -27,8 +27,11 @@ Download and run the agent
    python -m my_agent.agent
    ```
 
-## Run w api
+## Run on a server
 uv run langgraph dev
+
+### Test API through command line
+uv run test_client.py
 
 
 ## How to run tests
