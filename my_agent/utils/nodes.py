@@ -75,14 +75,15 @@ def search_ebay_node(state: MainState):
     token = get_ebay_token()
     queries = state.get("queries", [])
     logger.info("Searching eBay with queries: %s", queries)
-    results = scanEbay.invoke({"queries": queries, "token": token})
+    items = scanEbay.invoke({"queries": queries, "token": token})
 
     return {
         "messages": [
-            AIMessage(content=f"I found the following items on eBay: {results}")
+            AIMessage(content=f"I found the following items on eBay: {items}")
         ],
         "queries": [],
         "can_search": False,
+        "ebay_results": items,
     }
 
 

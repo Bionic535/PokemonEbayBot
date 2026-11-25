@@ -1,7 +1,7 @@
 import operator
 
 from langchain.messages import AnyMessage
-from typing_extensions import Annotated, TypedDict, Literal
+from typing_extensions import Annotated, TypedDict, Literal, Any
 class QuerySpec(TypedDict, total=False):
     Pokemon_Name: str
     Type: Literal["raw", "graded"]
@@ -39,3 +39,4 @@ class MainState(TypedDict):
     llm_calls: int
     queries: Annotated[list[QuerySpec], merge_queries]
     can_search: bool
+    ebay_results: list[dict[str, Any]]

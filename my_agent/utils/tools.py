@@ -57,21 +57,34 @@ def scanEbay(queries: list[QuerySpec], token: str) -> str:
         "Content-Type": "application/json",
     }
     
+    items: list[dict] = []
     for query in queries:
         min_price = query.get("Min_Price") or 0
         max_price = query.get("Max_Price") or 999999
-        query_string = " ".join(filter(None, [query.get("Pokemon_Name"), query.get("Set_Name")]))
+        query_string = " ".join(
+            filter(None, [query.get("Pokemon_Name"), query.get("Set_Name")])
+        )
         if query.get("Type") == "graded":
             query_string += f" {query.get('Grade_Company')} {query.get('Grade')}"
         params = {
             "q": query_string,
             "limit": 1,
-            "filter": f"price:[{min_price}..{max_price}],priceCurrency:AUD"
-            
+            "filter": f"price:[{min_price}..{max_price}],priceCurrency:AUD",
         }
-        print(params)
-        result = requests.get(base_url, headers=headers, params=params)
-    return f"Scanned eBay for '{queries}' Found {result.json()}"
+        response = requests.get(base_url, headers=headers, params=params, timeout=30)
+        data = response.json()
+        for summary in data.get("itemSummaries", []):
+            items.append({
+                "item_id": summary.get("itemId"),
+                "title": summary.get("title"),
+                "price": (summary.get("price") or {}).get("value"),
+                "currency": (summary.get("price") or {}).get("currency"),
+                "url": summary.get("itemWebUrl"),
+                "image_url": (summary.get("image") or {}).get("imageUrl"),
+                "condition": summary.get("condition"),
+                "seller": (summary.get("seller") or {}).get("username"),
+            })
+    return items
 
 
 @tool
